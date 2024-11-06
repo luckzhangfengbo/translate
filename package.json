@@ -1,0 +1,76 @@
+{
+  "name": "translate",
+  "displayName": "transtate@sunkaisens",
+  "description": "一款能让你快速生成变量名的插件",
+  "version": "0.0.1",
+  "engines": {
+    "vscode": "^1.79.2"
+  },
+  "publisher": "zhangfengbo",
+  "categories": [
+    "Other"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/luckzhangfengbo/translate"
+  },
+  "icon": "images/icon1.png",
+  "activationEvents": [
+    "onCommand:translate.zntoen"
+  ],
+  "main": "./extension.js",
+  "contributes": {
+    "commands": [
+      {
+        "command": "translate.zntoen",
+        "title": "中文翻译成英文"
+      }
+    ],
+    "menus": {
+      "editor/context": [
+        {
+          "when": "editorHasSelection",
+          "command": "translate.zntoen",
+          "group": "navigation"
+        }
+      ]
+    },
+    "configuration": [
+      {
+        "title": "transtate@sunkaisens",
+        "properties": {
+          "translate.appid": {
+            "type": "string",
+            "description": "百度翻译API-appid",
+            "default": "百度翻译API-appid"
+          },
+          "translate.secret": {
+            "type": "string",
+            "description": "百度翻译API-密钥",
+            "default": "百度翻译API-密钥"
+          }
+        }
+      }
+    ]
+  },
+  "scripts": {
+    "lint": "eslint .",
+    "pretest": "yarn run lint",
+    "test": "node ./test/runTest.js"
+  },
+  "devDependencies": {
+    "@types/glob": "^7.1.1",
+    "@types/mocha": "^7.0.1",
+    "@types/node": "^12.11.7",
+    "@types/vscode": "^1.49.0",
+    "eslint": "^6.8.0",
+    "glob": "^7.1.6",
+    "mocha": "^7.0.1",
+    "typescript": "^3.7.5",
+    "vscode-test": "^1.3.0"
+  },
+  "dependencies": {
+    "axios": "^0.20.0",
+    "md5": "^2.3.0"
+  }
+}
