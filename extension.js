@@ -43,13 +43,17 @@ function activate(context) {
        * @type {string} 选择的单词
        */
       let selectWord;
-      const currentEditor = vscode.window.activeTextEditor;
+      const currentEditor = vscode.window.activeTextEditor; //获取当前活动的文本编辑器
       if (!currentEditor) return;
       const currentSelect = currentEditor.document.getText(
         currentEditor.selection
       );
       if (!currentSelect) return;
-      const data = await api.translate(currentSelect, "zh", "en");
+      /**
+       * 使用 api.translate 函数将选中的中文文本翻译成英文。
+          如果返回的数据中包含错误代码，则调用 handlingExceptions 函数处理异常
+       */
+      const data = await api.translate(currentSelect, "zh", "en"); 
 
       if (data.data.error_code) {
         handlingExceptions(data.data.error_code);
@@ -96,6 +100,39 @@ function activate(context) {
   );
 
   context.subscriptions.push(disposable);
+
+   // 第二个命令：translate.print
+  const disposable1 = vscode.commands.registerCommand(
+    "translate.print",
+    async function () {
+      const currentEditor = vscode.window.activeTextEditor;
+      if (!currentEditor) return;
+
+      const selectedText = currentEditor.document.getText(currentEditor.selection);
+      if (!selectedText) return;
+
+      try {
+        const data = await api.translate(selectedText, "zh", "en");
+
+        if (data.data.error_code) {
+          handlingExceptions(data.data.error_code);
+          return;
+        }
+
+        // 获取翻译后的文本，并用空格隔开每个单词
+        const translatedText = data.data.trans_result[0].dst;
+        const result = translatedText.split(" ").join(" ");
+
+        currentEditor.edit((editBuilder) => {
+          editBuilder.replace(currentEditor.selection, result);
+        });
+      } catch (error) {
+        console.error("翻译时出错:", error);
+      }
+    }
+  );
+  context.subscriptions.push(disposable1);
+
 }
 exports.activate = activate;
 
