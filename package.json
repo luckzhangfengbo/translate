@@ -2,7 +2,7 @@
   "name": "translate",
   "displayName": "transtate@sunkaisens",
   "description": "一款能让你快速生成变量名的插件",
-  "version": "0.0.2",
+  "version": "0.0.3",
   "engines": {
     "vscode": "^1.79.2"
   },
@@ -17,7 +17,8 @@
   "icon": "images/icon1.png",
   "activationEvents": [
     "onCommand:translate.zntoen",
-    "onCommand:translate.print"
+    "onCommand:translate.print",
+    "onCommand:translate.viewHistory"
   ],
   "main": "./extension.js",
   "contributes": {
@@ -30,6 +31,11 @@
       {
         "command": "translate.print",
         "title": "打印:zh->en",
+        "category": "translate"
+      },
+      {
+        "command": "translate.viewHistory",
+        "title": "查看翻译历史",
         "category": "translate"
       }
     ],
@@ -44,6 +50,10 @@
           "when": "editorHasSelection",
           "command": "translate.print",
           "group": "navigation"
+        },
+        {
+          "command": "translate.viewHistory",
+          "when": "true"
         }
       ]
     },
@@ -93,6 +103,7 @@
   },
   "dependencies": {
     "axios": "^0.20.0",
+    "diff": "^7.0.0",
     "md5": "^2.3.0"
   }
 }

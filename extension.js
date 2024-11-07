@@ -1,11 +1,3 @@
-/*
- * @Descripttion:
- * @version:
- * @Author: luckzhangfengbo
- * @Date: 2024-11-06 17:18:04
- * @LastEditors: zhangfengbo
- * @LastEditTime: 2024-11-06 20:16:49
- */
 const vscode = require("vscode");
 const api = require("./translate-api");
 
@@ -28,15 +20,92 @@ function handlingExceptions(code) {
     90107: "认证未通过或未生效",
   };
   vscode.window.showWarningMessage(
-    "transtate@sunkaisens: " + codes[code] || "未知异常, 可评论反馈"
+    "translate@sunkaisens: " + (codes[code] || "未知异常, 可评论反馈")
   );
 }
+
+/**
+ * 存储翻译历史记录，并删除过期的记录（超过一天的）
+ * @param {vscode.ExtensionContext} context
+ * @param {string} originalText 原文本
+ * @param {string} translatedText 翻译后的文本
+ */
+function saveTranslationHistory(context, originalText, translatedText) {
+  const history = context.globalState.get("translationHistory", []);
+
+  // 删除超过一天的历史记录
+  const oneDayInMillis = 24 * 60 * 60 * 1000;
+  const currentTime = new Date().getTime();
+  const filteredHistory = history.filter(record => {
+    return (currentTime - new Date(record.date).getTime()) < oneDayInMillis;
+  });
+
+  // 添加新的记录
+  filteredHistory.push({ originalText, translatedText, date: new Date().toLocaleString() });
+
+  // 更新保存的历史记录
+  context.globalState.update("translationHistory", filteredHistory);
+}
+
+
+/**
+ * 查看翻译历史并支持多选， 不分页
+ * @param {vscode.ExtensionContext} context
+ */
+async function viewTranslationHistory(context) {
+  const history = context.globalState.get("translationHistory", []);
+  if (history.length === 0) {
+    vscode.window.showInformationMessage("没有翻译历史记录。");
+    return;
+  }
+
+  const items = history.map((record, index) => ({
+    label: `#${index + 1} - ${record.date}`,
+    description: `原文: ${record.originalText}`,
+    detail: `译文: ${record.translatedText}`,  // 译文前缀
+    originalText: record.originalText,
+    translatedText: record.translatedText,
+    date: record.date
+  }));
+
+  // 允许多选并启用模糊搜索
+  const selections = await vscode.window.showQuickPick(items, {
+    placeHolder: "请选择翻译记录进行查看",
+    canPickMany: true, // 允许多选
+    matchOnDetail: true, // 启用模糊搜索
+    matchOnDescription: true, // 允许根据 description 模糊匹配
+    matchOnLabel: true // 允许根据 label 模糊匹配
+  });
+
+  if (selections && selections.length > 0) {
+    // 将所有选中的翻译内容复制到剪贴板，去除“译文:”
+    const copiedText = selections
+      .map(selection => selection.detail.replace(/^译文:\s*/, '')) // 删除“译文:”前缀
+      .join("\n\n");
+
+    vscode.env.clipboard.writeText(copiedText);
+    vscode.window.showInformationMessage(`${selections.length} 条翻译记录的译文已复制到剪贴板。`);
+  }
+}
+
+
 
 /**
  * @param {vscode.ExtensionContext} context
  */
 function activate(context) {
-  const disposable = vscode.commands.registerCommand(
+
+    // 检查是否是首次安装
+    const isFirstRun = context.globalState.get("isFirstRun", true);
+
+    if (isFirstRun) {
+      // 清除历史记录
+      context.globalState.update("translationHistory", []);
+      
+      // 设置标记为 false，表示已经执行过清除操作
+      context.globalState.update("isFirstRun", false);
+    }
+  const disposableTranslate = vscode.commands.registerCommand(
     "translate.zntoen",
     async function () {
       /**
@@ -95,14 +164,13 @@ function activate(context) {
         currentEditor.edit((editBuilder) => {
           editBuilder.replace(currentEditor.selection, selectWord);
         });
+        // 保存翻译历史记录
+        saveTranslationHistory(context, currentSelect, selectWord);
       }
     }
   );
 
-  context.subscriptions.push(disposable);
-
-   // 第二个命令：translate.print
-  const disposable1 = vscode.commands.registerCommand(
+  const disposablePrint = vscode.commands.registerCommand(
     "translate.print",
     async function () {
       const currentEditor = vscode.window.activeTextEditor;
@@ -111,30 +179,29 @@ function activate(context) {
       const selectedText = currentEditor.document.getText(currentEditor.selection);
       if (!selectedText) return;
 
-      try {
-        const data = await api.translate(selectedText, "zh", "en");
+      const data = await api.translate(selectedText, "zh", "en");
 
-        if (data.data.error_code) {
-          handlingExceptions(data.data.error_code);
-          return;
-        }
-
-        // 获取翻译后的文本，并用空格隔开每个单词
-        const translatedText = data.data.trans_result[0].dst;
-        const result = translatedText.split(" ").join(" ");
-
-        currentEditor.edit((editBuilder) => {
-          editBuilder.replace(currentEditor.selection, result);
-        });
-      } catch (error) {
-        console.error("翻译时出错:", error);
+      if (data.data.error_code) {
+        handlingExceptions(data.data.error_code);
+        return;
       }
+
+      const translatedText = data.data.trans_result[0].dst;
+      saveTranslationHistory(context, selectedText, translatedText);
+
+      currentEditor.edit((editBuilder) => {
+        editBuilder.replace(currentEditor.selection, translatedText);
+      });
     }
   );
-  context.subscriptions.push(disposable1);
 
+  const disposableViewHistory = vscode.commands.registerCommand(
+    "translate.viewHistory",
+    () => viewTranslationHistory(context)
+  );
+
+  context.subscriptions.push(disposableTranslate, disposablePrint, disposableViewHistory);
 }
-exports.activate = activate;
 
 function deactivate() {}
 
