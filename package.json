@@ -2,7 +2,7 @@
   "name": "translate",
   "displayName": "transtate@sunkaisens",
   "description": "一款能让你快速生成变量名的插件",
-  "version": "0.0.1",
+  "version": "0.0.2",
   "engines": {
     "vscode": "^1.79.2"
   },
@@ -16,14 +16,21 @@
   },
   "icon": "images/icon1.png",
   "activationEvents": [
-    "onCommand:translate.zntoen"
+    "onCommand:translate.zntoen",
+    "onCommand:translate.print"
   ],
   "main": "./extension.js",
   "contributes": {
     "commands": [
       {
         "command": "translate.zntoen",
-        "title": "中文翻译成英文"
+        "title": "变量:zh->en",
+        "category": "translate"
+      },
+      {
+        "command": "translate.print",
+        "title": "打印:zh->en",
+        "category": "translate"
       }
     ],
     "menus": {
@@ -32,22 +39,37 @@
           "when": "editorHasSelection",
           "command": "translate.zntoen",
           "group": "navigation"
+        },
+        {
+          "when": "editorHasSelection",
+          "command": "translate.print",
+          "group": "navigation"
         }
       ]
     },
+    "keybindings": [
+      {
+        "command": "translate.zntoen",
+        "key": "ctrl+d",
+        "when": "editorTextFocus && editorHasSelection"
+      },
+      {
+        "command": "translate.print",
+        "key": "ctrl+alt+d",
+        "when": "editorTextFocus && editorHasSelection"
+      }
+    ],
     "configuration": [
       {
         "title": "transtate@sunkaisens",
         "properties": {
           "translate.appid": {
             "type": "string",
-            "description": "百度翻译API-appid",
-            "default": "百度翻译API-appid"
+            "description": "百度翻译API-appid"
           },
           "translate.secret": {
             "type": "string",
-            "description": "百度翻译API-密钥",
-            "default": "百度翻译API-密钥"
+            "description": "百度翻译API-密钥"
           }
         }
       }
