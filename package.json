@@ -39,21 +39,34 @@
         "category": "translate"
       }
     ],
+    "submenus": [
+      {
+        "id": "translate",
+        "label": "translate@sunkaisens" 
+      }
+    ],
     "menus": {
       "editor/context": [
         {
+           "submenu": "translate",
+          "group": "navigation"
+        }
+      ],
+      "translate":[
+        {
           "when": "editorHasSelection",
           "command": "translate.zntoen",
-          "group": "navigation"
+          "group": "1"
         },
         {
           "when": "editorHasSelection",
           "command": "translate.print",
-          "group": "navigation"
+          "group": "1"
         },
         {
           "command": "translate.viewHistory",
-          "when": "true"
+          "when": "true",
+          "group": "1"
         }
       ]
     },
@@ -67,6 +80,11 @@
         "command": "translate.print",
         "key": "ctrl+alt+d",
         "when": "editorTextFocus && editorHasSelection"
+      },
+      {
+        "command": "translate.viewHistory",
+        "key": "ctrl+alt+e",
+        "when": "true"
       }
     ],
     "configuration": [
