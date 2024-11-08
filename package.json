@@ -2,7 +2,7 @@
   "name": "translate",
   "displayName": "transtate@sunkaisens",
   "description": "一款能让你快速生成变量名的插件",
-  "version": "0.0.3",
+  "version": "0.0.5",
   "engines": {
     "vscode": "^1.79.2"
   },
@@ -18,7 +18,8 @@
   "activationEvents": [
     "onCommand:translate.zntoen",
     "onCommand:translate.print",
-    "onCommand:translate.viewHistory"
+    "onCommand:translate.viewHistory",
+    "*"
   ],
   "main": "./extension.js",
   "contributes": {
@@ -98,6 +99,16 @@
           "translate.secret": {
             "type": "string",
             "description": "百度翻译API-密钥"
+          },
+          "translatePlugin.maxTranslationHistoryCount": {
+            "type": "number",
+            "default": 10,
+            "description": "最大翻译历史记录条数，达到该条数时清空历史记录。"
+          },
+          "translatePlugin.enableHoverTranslation": {
+            "type": "boolean",
+            "default": false,
+            "description": "在悬停时启用翻译"
           }
         }
       }

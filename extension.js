@@ -1,6 +1,9 @@
 const vscode = require("vscode");
 const api = require("./translate-api");
+const { isChinese } = require("./function.js");
 
+// 缓存对象
+let translationCache = {};
 /**
  * 处理异常
  */
@@ -24,27 +27,63 @@ function handlingExceptions(code) {
   );
 }
 
+// /**
+//  * 存储翻译历史记录，并删除过期的记录（超过一天的）
+//  * @param {vscode.ExtensionContext} context
+//  * @param {string} originalText 原文本
+//  * @param {string} translatedText 翻译后的文本
+//  */
+// function saveTranslationHistory(context, originalText, translatedText) {
+//   const history = context.globalState.get("translationHistory", []);
+
+//   // 删除超过一天的历史记录
+//   const oneDayInMillis = 24 * 60 * 60 * 1000;
+//   const currentTime = new Date().getTime();
+//   const filteredHistory = history.filter(record => {
+//     return (currentTime - new Date(record.date).getTime()) < oneDayInMillis;
+//   });
+
+//   // 添加新的记录
+//   filteredHistory.push({ originalText, translatedText, date: new Date().toLocaleString() });
+
+//   // 更新保存的历史记录
+//   context.globalState.update("translationHistory", filteredHistory);
+// }
+
 /**
- * 存储翻译历史记录，并删除过期的记录（超过一天的）
+ * 存储翻译历史记录，并删除过期的记录（条数达到10条时清空）
  * @param {vscode.ExtensionContext} context
  * @param {string} originalText 原文本
  * @param {string} translatedText 翻译后的文本
  */
 function saveTranslationHistory(context, originalText, translatedText) {
-  const history = context.globalState.get("translationHistory", []);
 
-  // 删除超过一天的历史记录
-  const oneDayInMillis = 24 * 60 * 60 * 1000;
-  const currentTime = new Date().getTime();
-  const filteredHistory = history.filter(record => {
-    return (currentTime - new Date(record.date).getTime()) < oneDayInMillis;
-  });
+  const config = vscode.workspace.getConfiguration("translatePlugin"); // 读取插件配置
+  const maxHistoryCount = config.get("maxTranslationHistoryCount", 10); // 获取用户配置的最大记录条数，默认10条
+
+  let history = context.globalState.get("translationHistory", []);
+
+  //检查是否已有相同的原文和译文记录
+  const isDuplicate = history.some(record =>
+    record.originalText === originalText && record.translatedText === translatedText
+  );
+
+  if (isDuplicate) {
+    console.log("Duplicate translation record found, skipping.");
+    return; // 如果已存在相同记录，则不重复生成
+  }
+
+  // 如果历史记录条数超过10条，则清空历史记录
+  if (history.length >= maxHistoryCount) {
+    context.globalState.update("translationHistory", []);
+    return;
+  }
 
   // 添加新的记录
-  filteredHistory.push({ originalText, translatedText, date: new Date().toLocaleString() });
+  history.push({ originalText, translatedText, date: new Date().toLocaleString() });
 
   // 更新保存的历史记录
-  context.globalState.update("translationHistory", filteredHistory);
+  context.globalState.update("translationHistory", history);
 }
 
 
@@ -88,6 +127,65 @@ async function viewTranslationHistory(context) {
   }
 }
 
+/**
+ * 悬浮翻译的处理，添加缓存机制
+ * @param {vscode.ExtensionContext} context
+ */
+function hoverTranslationWithCache(context) {
+  const hoverProvider = vscode.languages.registerHoverProvider("*", {
+    async provideHover(document, position) {
+      const wordRange = document.getWordRangeAtPosition(position);
+      const hoveredText = document.getText(wordRange);
+
+      if (!hoveredText) return;
+
+      try {
+        // 判断是中文还是英文，调用不同的翻译API
+        let translatedText = translationCache[hoveredText];
+        if (!translatedText) {
+          if (isChinese(hoveredText)) {
+            console.log("选择的文本是中文");
+            // 中文翻译成英文
+            const data = await api.translate(hoveredText, "zh", "en");
+
+            if (data.data.error_code) {
+              handlingExceptions(data.data.error_code);
+              return;
+            }
+
+            translatedText = data.data.trans_result[0].dst;
+          } else {
+            console.log("选择的文本是英文");
+            // 英文翻译成中文
+            const data = await api.translate(hoveredText, "en", "zh");
+
+            if (data.data.error_code) {
+              handlingExceptions(data.data.error_code);
+              return;
+            }
+
+            translatedText = data.data.trans_result[0].dst;
+          }
+          // 缓存翻译结果
+          translationCache[hoveredText] = translatedText;
+        }
+
+        const markdownString = new vscode.MarkdownString(`**[原词]: ${hoveredText}  [翻译结果]: ${translatedText}**`);
+        markdownString.isTrusted = true;
+
+        // 保存翻译历史记录
+        saveTranslationHistory(context, hoveredText, translatedText);
+
+        return new vscode.Hover(markdownString);
+      } catch (error) {
+        console.error("Translation failed:", error);
+        vscode.window.showErrorMessage("翻译失败，请检查网络连接或配置");
+      }
+    }
+  });
+
+  context.subscriptions.push(hoverProvider);
+}
 
 
 /**
@@ -95,16 +193,24 @@ async function viewTranslationHistory(context) {
  */
 function activate(context) {
 
-    // 检查是否是首次安装
-    const isFirstRun = context.globalState.get("isFirstRun", true);
+  // 检查是否是首次安装
+  const isFirstRun = context.globalState.get("isFirstRun", true);
 
-    if (isFirstRun) {
-      // 清除历史记录
-      context.globalState.update("translationHistory", []);
+  if (isFirstRun) {
+    console.log("First installation of translation plugin, clearing history records");
+    // 清除历史记录
+    context.globalState.update("translationHistory", []);
       
-      // 设置标记为 false，表示已经执行过清除操作
-      context.globalState.update("isFirstRun", false);
-    }
+    // 设置标记为 false，表示已经执行过清除操作
+    context.globalState.update("isFirstRun", false);
+  }
+  console.log('This is not the first time installing a translation plugin!\n')
+
+
+
+  // 读取配置
+  const config = vscode.workspace.getConfiguration("translatePlugin");
+  const enableHoverTranslation = config.get("enableHoverTranslation", false); // 获取用户配置
   const disposableTranslate = vscode.commands.registerCommand(
     "translate.zntoen",
     async function () {
@@ -167,6 +273,7 @@ function activate(context) {
         // 保存翻译历史记录
         saveTranslationHistory(context, currentSelect, selectWord);
       }
+      console.log("Translation completed");
     }
   );
 
@@ -199,6 +306,10 @@ function activate(context) {
     "translate.viewHistory",
     () => viewTranslationHistory(context)
   );
+
+  if (enableHoverTranslation) {
+    hoverTranslationWithCache(context);
+  }
 
   context.subscriptions.push(disposableTranslate, disposablePrint, disposableViewHistory);
 }
