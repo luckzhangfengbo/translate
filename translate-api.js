@@ -1,6 +1,14 @@
-const axios = require('axios')
-const vscode = require('vscode')
-const md5 = require('md5')
+/*
+ * @Descripttion:
+ * @version:
+ * @Author: luckzhangfengbo
+ * @Date: 2024-11-09 09:37:35
+ * @LastEditors: zhangfengbo
+ * @LastEditTime: 2024-11-09 09:47:17
+ */
+const axios = require("axios");
+const vscode = require("vscode");
+const md5 = require("md5");
 // const appid = vscode.workspace.getConfiguration().get('translate.appid')
 // const secret = vscode.workspace.getConfiguration().get('translate.secret')
 
@@ -26,18 +34,18 @@ module.exports = {
 }>} Promise翻译结果
    */
   translate(q, from, to) {
-    var salt = Math.random()
+    var salt = Math.random();
     return axios({
-      method: 'get',
-      url: 'https://fanyi-api.baidu.com/api/trans/vip/translate',
+      method: "get",
+      url: "https://fanyi-api.baidu.com/api/trans/vip/translate",
       params: {
         q,
         appid,
         from,
         to,
         salt,
-        sign: md5(appid + q + salt + secret)
-      }
-    })
-  }
-}
+        sign: md5(appid + q + salt + secret),
+      },
+    });
+  },
+};
