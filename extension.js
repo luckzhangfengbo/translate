@@ -212,7 +212,7 @@ function activate(context) {
   const config = vscode.workspace.getConfiguration("translatePlugin");
   const enableHoverTranslation = config.get("enableHoverTranslation", false); // 获取用户配置
   const disposableTranslate = vscode.commands.registerCommand(
-    "translate.zntoen",
+    "translate-sunkaisens.zntoen",
     async function () {
       /**
        * @type {string} 选择的单词
@@ -278,7 +278,7 @@ function activate(context) {
   );
 
   const disposablePrint = vscode.commands.registerCommand(
-    "translate.print",
+    "translate-sunkaisens.print",
     async function () {
       const currentEditor = vscode.window.activeTextEditor;
       if (!currentEditor) return;
@@ -303,7 +303,7 @@ function activate(context) {
   );
 
   const disposableViewHistory = vscode.commands.registerCommand(
-    "translate.viewHistory",
+    "translate-sunkaisens.viewHistory",
     () => viewTranslationHistory(context)
   );
 
